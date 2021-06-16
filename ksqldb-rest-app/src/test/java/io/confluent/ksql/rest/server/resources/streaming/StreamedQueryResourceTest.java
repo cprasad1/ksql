@@ -196,6 +196,8 @@ public class StreamedQueryResourceTest {
   @Mock
   private ConcurrencyLimiter concurrencyLimiter;
   @Mock
+  private RateLimiter pullBandwidthLimiter;
+  @Mock
   private KsqlConfig ksqlConfig;
   @Mock
   private KsqlRestConfig ksqlRestConfig;

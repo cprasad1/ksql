@@ -15,6 +15,7 @@
 
 package io.confluent.ksql.rest.server;
 
+import io.confluent.ksql.rest.util.*;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -53,7 +54,6 @@ import io.confluent.ksql.rest.server.computation.CommandRunner;
 import io.confluent.ksql.rest.server.computation.CommandStore;
 import io.confluent.ksql.rest.server.resources.KsqlResource;
 import io.confluent.ksql.rest.server.resources.StatusResource;
-import io.confluent.ksql.rest.util.ConcurrencyLimiter;
 import io.confluent.ksql.rest.server.resources.streaming.StreamedQueryResource;
 import io.confluent.ksql.rest.server.state.ServerState;
 import io.confluent.ksql.security.KsqlSecurityContext;
@@ -141,6 +141,8 @@ public class KsqlRestApplicationTest {
   private RateLimiter rateLimiter;
   @Mock
   private ConcurrencyLimiter concurrencyLimiter;
+  @Mock
+  private SlidingWindowRateLimiter pullBandwidthLimiter;
   @Mock
   private HARouting haRouting;
 
@@ -486,6 +488,7 @@ public class KsqlRestApplicationTest {
         routingFilterFactory,
         rateLimiter,
         concurrencyLimiter,
+            pullBandwidthLimiter,
         haRouting,
         Optional.empty()
     );

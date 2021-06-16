@@ -15,6 +15,7 @@
 
 package io.confluent.ksql.rest.server;
 
+import io.confluent.ksql.rest.util.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 
 import com.google.common.util.concurrent.RateLimiter;
@@ -47,7 +48,6 @@ import io.confluent.ksql.rest.server.resources.ServerMetadataResource;
 import io.confluent.ksql.rest.server.resources.StatusResource;
 import io.confluent.ksql.rest.server.resources.streaming.StreamedQueryResource;
 import io.confluent.ksql.rest.server.resources.streaming.WSQueryEndpoint;
-import io.confluent.ksql.rest.util.ConcurrencyLimiter;
 import io.confluent.ksql.security.KsqlSecurityContext;
 import io.confluent.ksql.util.KsqlConfig;
 import io.confluent.ksql.util.ReservedInternalTopics;
@@ -88,6 +88,7 @@ public class KsqlServerEndpoints implements Endpoints {
   private final Optional<PullQueryExecutorMetrics> pullQueryMetrics;
   private final RateLimiter rateLimiter;
   private final ConcurrencyLimiter pullConcurrencyLimiter;
+  private final SlidingWindowRateLimiter pullBandwidthLimiter;
   private final HARouting routing;
   private final Optional<LocalCommands> localCommands;
 
@@ -111,6 +112,7 @@ public class KsqlServerEndpoints implements Endpoints {
       final Optional<PullQueryExecutorMetrics> pullQueryMetrics,
       final RateLimiter rateLimiter,
       final ConcurrencyLimiter pullConcurrencyLimiter,
+      final SlidingWindowRateLimiter pullBandwidthLimiter,
       final HARouting routing,
       final Optional<LocalCommands> localCommands
   ) {
@@ -135,6 +137,7 @@ public class KsqlServerEndpoints implements Endpoints {
     this.pullQueryMetrics = Objects.requireNonNull(pullQueryMetrics);
     this.rateLimiter = Objects.requireNonNull(rateLimiter);
     this.pullConcurrencyLimiter = pullConcurrencyLimiter;
+    this.pullBandwidthLimiter = pullBandwidthLimiter;
     this.routing = Objects.requireNonNull(routing);
     this.localCommands = Objects.requireNonNull(localCommands);
   }
@@ -203,6 +206,7 @@ public class KsqlServerEndpoints implements Endpoints {
       final KsqlMediaType mediaType,
       final MetricsCallbackHolder metricsCallbackHolder
   ) {
+    metricsCallbackHolder.setPullBandwidthLimiter(pullBandwidthLimiter);
     return executeOldApiEndpointOnWorker(apiSecurityContext,
         ksqlSecurityContext -> streamedQueryResource.streamQuery(
             ksqlSecurityContext,

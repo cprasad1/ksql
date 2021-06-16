@@ -15,7 +15,8 @@
 
 package io.confluent.ksql.api.server;
 
-import java.util.concurrent.atomic.AtomicReference;
+import io.confluent.ksql.rest.util.*;
+import java.util.concurrent.atomic.*;
 
 /**
  * This class give a resource the opportunity to register a set of particular callbacks based upon
@@ -24,6 +25,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class MetricsCallbackHolder {
 
   private AtomicReference<MetricsCallback> callbackRef = new AtomicReference<>(null);
+  private SlidingWindowRateLimiter pullBandwidthLimiter;
 
   public MetricsCallbackHolder() {
   }
@@ -38,5 +40,13 @@ public class MetricsCallbackHolder {
     if (callback != null) {
       callback.reportMetricsOnCompletion(statusCode, requestBytes, responseBytes, startTimeNanos);
     }
+  }
+
+  public void setPullBandwidthLimiter(final SlidingWindowRateLimiter pullBandwidthLimiter) {
+    this.pullBandwidthLimiter = pullBandwidthLimiter;
+  }
+
+  public SlidingWindowRateLimiter getPullBandwidthLimiter() {
+    return this.pullBandwidthLimiter;
   }
 }

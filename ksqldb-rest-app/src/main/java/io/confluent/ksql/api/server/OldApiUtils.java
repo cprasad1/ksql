@@ -15,31 +15,23 @@
 
 package io.confluent.ksql.api.server;
 
-import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
-import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
-import static org.apache.hc.core5.http.HttpHeaders.TRANSFER_ENCODING;
-
-import io.confluent.ksql.api.auth.ApiSecurityContext;
-import io.confluent.ksql.api.auth.DefaultApiSecurityContext;
-import io.confluent.ksql.rest.EndpointResponse;
-import io.confluent.ksql.rest.Errors;
-import io.confluent.ksql.rest.entity.KsqlErrorMessage;
-import io.confluent.ksql.rest.server.resources.KsqlRestException;
-import io.confluent.ksql.util.VertxCompletableFuture;
-import io.vertx.core.WorkerExecutor;
-import io.vertx.core.buffer.Buffer;
-import io.vertx.core.http.HttpHeaders;
-import io.vertx.core.http.HttpServerResponse;
-import io.vertx.core.http.HttpVersion;
-import io.vertx.ext.web.RoutingContext;
-import java.io.BufferedOutputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
-import java.util.function.BiFunction;
-import org.apache.kafka.common.utils.Time;
+import io.confluent.ksql.api.auth.*;
+import io.confluent.ksql.rest.*;
+import io.confluent.ksql.rest.entity.*;
+import io.confluent.ksql.rest.server.resources.*;
+import io.confluent.ksql.rest.util.*;
+import io.confluent.ksql.util.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import io.vertx.core.*;
+import io.vertx.core.buffer.*;
+import io.vertx.core.http.*;
+import io.vertx.ext.web.*;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
+import static org.apache.hc.core5.http.HttpHeaders.*;
+import org.apache.kafka.common.utils.*;
 
 public final class OldApiUtils {
 
@@ -126,15 +118,16 @@ public final class OldApiUtils {
   }
 
   private static void streamEndpointResponse(final Server server,
-      final RoutingContext routingContext,
-      final StreamingOutput streamingOutput,
-      final Optional<MetricsCallbackHolder> metricsCallbackHolder,
-      final long startTimeNanos) {
+                                             final RoutingContext routingContext,
+                                             final StreamingOutput streamingOutput,
+                                             final Optional<MetricsCallbackHolder> metricsCallbackHolder,
+                                             final long startTimeNanos) {
     final WorkerExecutor workerExecutor = server.getWorkerExecutor();
     final VertxCompletableFuture<Void> vcf = new VertxCompletableFuture<>();
     workerExecutor.executeBlocking(
         promise -> {
-          final OutputStream ros = new ResponseOutputStream(routingContext.response(),
+          final HttpServerResponse response = routingContext.response();
+          final OutputStream ros = new ResponseOutputStream(response,
                   streamingOutput.getWriteTimeoutMs());
           routingContext.request().connection().closeHandler(v -> {
             // Close the OutputStream on close of the HTTP connection
@@ -145,7 +138,12 @@ public final class OldApiUtils {
             }
           });
           try {
+            //System.out.println((int) tokens);
+            SlidingWindowRateLimiter rl = metricsCallbackHolder.get().getPullBandwidthLimiter();
             streamingOutput.write(new BufferedOutputStream(ros));
+            final long tokens = response.bytesWritten();
+            System.out.println(tokens);
+            rl.acquire(tokens);
             promise.complete();
           } catch (Exception e) {
             promise.fail(e);
